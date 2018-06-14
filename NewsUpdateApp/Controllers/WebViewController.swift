@@ -15,7 +15,7 @@ class WebViewController: UIViewController {
     @IBOutlet weak var webView: WKWebView!
     override func viewDidLoad() {
         super.viewDidLoad()
-        print(urlString)
+        print("**************Form 3 \(urlString)")
 
         let url : URL = URL(string: urlString)!
         let request: URLRequest = URLRequest(url: url)

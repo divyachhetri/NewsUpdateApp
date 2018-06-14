@@ -17,37 +17,40 @@ import AlamofireImage
 class HeadlinesViewController: UIViewController {
     
     let webUrl = "https://newsapi.org/v2/top-headlines"
-    let params : [String : String] = ["apiKey" : "d7f0471d43f74327b096bc720d70689b", "country" : "us", "sortBy" : "latest"]
+    var sourceId = " "
     var newsArticleArray = [DataModel]()
+    var refresher : UIRefreshControl = {
+        let refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action: #selector(refreshContent), for: .valueChanged)
+        refreshControl.tintColor = .gray
+        return refreshControl
+        
+    }()
+    
     
     @IBOutlet weak var tableView: UITableView!
     override func viewDidLoad() {
         super.viewDidLoad()
-        getData(url: webUrl, parameters: params)
-        
+        checkParameters()
+        tableView.refreshControl = refresher
     }
     
-    
-    
     func getData(url : String, parameters : [String : String]){
-        Alamofire.request(webUrl, method: .get, parameters: params).responseJSON { response in
+        Alamofire.request(webUrl, method: .get, parameters: parameters).responseJSON { response in
             if response.result.isSuccess {
                 print("Success")
-                //print(response.result.value)
+                print(response.result.value!)
                 if let jsonValue = (response.result.value!) as? [String : Any]{
                     if let jsonArray = jsonValue["articles"] as? Array<[String : Any]> {
                         for article in jsonArray {
                             guard let data = Mapper<DataModel>().map(JSON: article) else {continue}
                             self.newsArticleArray.append(data)
-                            
                         }
-                        //print(self.newsArticleArray.count)
                         
                     }
                 }
                 self.tableView.reloadData()
-                
-            }
+                }
                 
             else {
                 print("Error :\(response.result.error!)")
@@ -59,7 +62,6 @@ class HeadlinesViewController: UIViewController {
 }
 extension HeadlinesViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        print(newsArticleArray.count)
         return newsArticleArray.count
     }
     
@@ -68,8 +70,11 @@ extension HeadlinesViewController: UITableViewDataSource, UITableViewDelegate {
         let news = newsArticleArray[indexPath.row]
         cell.headlineLabel.text = news.title
         if news.imageUrl != nil {
-             let url = URL(string: news.imageUrl!)
-                cell.newsImageView.af_setImage(withURL: url!)
+            if let url = URL(string: news.imageUrl!){
+                 cell.newsImageView.af_setImage(withURL: url)
+                
+            }
+            
         }
         return cell
         
@@ -81,7 +86,28 @@ extension HeadlinesViewController: UITableViewDataSource, UITableViewDelegate {
       self.navigationController?.pushViewController(webVC, animated: true)
         
     }
-    
+    func checkParameters() {
+        if sourceId == "Skip" {
+            let params = ["apiKey" : "d7f0471d43f74327b096bc720d70689b", "sortBy" : "latest", "country" : "us"]
+            getData(url: webUrl, parameters: params)
+            
+        }
+        else {
+            let params = ["apiKey" : "d7f0471d43f74327b096bc720d70689b", "sortBy" : "latest", "sources" : sourceId]
+            getData(url: webUrl, parameters: params)
+            
+        }
+        
+    }
+    @objc func refreshContent() {
+        newsArticleArray = []
+        checkParameters()
+        let delay = DispatchTime.now() + .milliseconds(700)
+        DispatchQueue.main.asyncAfter(deadline: delay) {
+            self.tableView.reloadData()
+            self.refresher.endRefreshing()
+        }
+    }
     
 }
 
