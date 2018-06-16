@@ -9,23 +9,32 @@
 import UIKit
 
 class WelcomeViewController: UIViewController, UITableViewDelegate, UITableViewDataSource{
- 
+    
+    let vc = UIStoryboard(name: "TopStories", bundle: nil).instantiateViewController(withIdentifier: "HeadlinesViewController") as! HeadlinesViewController
+    let data = NewsSources()
+    var CallAPI : AlamofireAPI?
+    var reachability : Reachability!
+    var internetConnection = false
     
     @IBOutlet weak var dateLabel: UILabel!
     @IBOutlet weak var tableView: UITableView!
     @IBOutlet weak var weekDayLabel: UILabel!
     
-    let vc = UIStoryboard(name: "TopStories", bundle: nil).instantiateViewController(withIdentifier: "HeadlinesViewController") as! HeadlinesViewController
-    let data = NewsSources()
-    
-    
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+        self.reachability = Reachability.init()
+        //checkInternetConnection ()
         tableView.dataSource = self
         tableView.delegate = self
         updateDate()
     }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(true)
+        checkInternetConnection ()
+    }
+//    override func viewDidAppear(_ animated: Bool) {
+//        checkInternetConnection()
+//    }
     
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -43,17 +52,29 @@ class WelcomeViewController: UIViewController, UITableViewDelegate, UITableViewD
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-    
-        vc.sourceId = data.newsSourceId[indexPath.row]
-        navigationController?.pushViewController(vc, animated: true)
+        if internetConnection == true {
+            let id = data.newsSourceId[indexPath.row]
+        vc.sourceId = id
+        CallAPI = AlamofireAPI(sourceId: id)
+        callApi()
+        } else {
+            displayAlert()
+        }
+
     }
     
     
     @IBAction func skipbuttonPressed(_ sender: UIButton) {
+        if internetConnection == true {
+            vc.sourceId = "Skip"
+            CallAPI = AlamofireAPI(sourceId: "Skip")
+            callApi()
+            
+        } else {
+            displayAlert()
+        }
         
-        vc.sourceId = "Skip"
         
-        navigationController?.pushViewController(vc, animated: true)
     }
     
     func updateDate(){
@@ -70,7 +91,41 @@ class WelcomeViewController: UIViewController, UITableViewDelegate, UITableViewD
         
 
     }
-    
+    func callApi() {
+        CallAPI?.getData() { (response, error) in
+            if let data = response {
+                self.vc.getJson = data
+                self.navigationController?.pushViewController(self.vc, animated: true)
+            }
+            else {
+                print("\(error!)")
+            }
+        }
+   
+    }
+    func checkInternetConnection () {
+        if ((self.reachability!.connection) != .none) {
+            
+            internetConnection = true
+        } else {
+            internetConnection = false
+            displayAlert()
+        }
+
+    }
+    func displayAlert () {
+        let alert = UIAlertController(title: "No Internet Connection", message: "Check your internet connection and try again.", preferredStyle: .alert)
+        let okAction = UIAlertAction(title: "Ok", style: .default) { (action) in
+            alert.dismiss(animated: true, completion: nil)
+        }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .default) { (action) in
+            alert.dismiss(animated: true, completion: nil)
+        }
+        alert.addAction(okAction)
+        alert.addAction(cancelAction)
+        present(alert, animated: true, completion: nil)
+    }
+}
     
 
-}
+

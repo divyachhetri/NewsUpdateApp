@@ -12,6 +12,7 @@ class HeadlineCell: UITableViewCell {
 
     @IBOutlet weak var newsImageView: UIImageView!
     @IBOutlet weak var headlineLabel: UILabel!
+    @IBOutlet weak var newsSourceLabel: UILabel!
     override func awakeFromNib() {
         super.awakeFromNib()
         

@@ -8,10 +8,12 @@
 
 import Foundation
 import ObjectMapper
+
 class DataModel : Mappable {
     var title : String?
     var imageUrl : String?
     var webUrl : String?
+    var source : String?
     
     required init?(map: Map) {
         
@@ -22,6 +24,9 @@ class DataModel : Mappable {
         title <- map["title"]
         webUrl <- map["url"]
        imageUrl <- map["urlToImage"]
+        source <- map["source.name"]
+
     }
     
 }
+

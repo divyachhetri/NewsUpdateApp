@@ -7,72 +7,65 @@
 //
 
 import UIKit
-import Alamofire
-import SwiftyJSON
 import ObjectMapper
 import AlamofireImage
-
+import SwiftyJSON
 
 
 class HeadlinesViewController: UIViewController {
     
-    let webUrl = "https://newsapi.org/v2/top-headlines"
+    var getJson : Any?
     var sourceId = " "
     var newsArticleArray = [DataModel]()
-    var refresher : UIRefreshControl = {
+    var callAPI : AlamofireAPI?
+    
+    private var refresher : UIRefreshControl = {
         let refreshControl = UIRefreshControl()
         refreshControl.addTarget(self, action: #selector(refreshContent), for: .valueChanged)
         refreshControl.tintColor = .gray
         return refreshControl
-        
+
     }()
-    
+
     
     @IBOutlet weak var tableView: UITableView!
     override func viewDidLoad() {
         super.viewDidLoad()
-        checkParameters()
+        mapData()
         tableView.refreshControl = refresher
     }
-    
-    func getData(url : String, parameters : [String : String]){
-        Alamofire.request(webUrl, method: .get, parameters: parameters).responseJSON { response in
-            if response.result.isSuccess {
-                print("Success")
-                print(response.result.value!)
-                if let jsonValue = (response.result.value!) as? [String : Any]{
-                    if let jsonArray = jsonValue["articles"] as? Array<[String : Any]> {
-                        for article in jsonArray {
-                            guard let data = Mapper<DataModel>().map(JSON: article) else {continue}
-                            self.newsArticleArray.append(data)
-                        }
-                        
-                    }
-                }
-                self.tableView.reloadData()
-                }
-                
-            else {
-                print("Error :\(response.result.error!)")
-            }
-        }
-        
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        newsArticleArray = []
+        self.mapData()
+
     }
-    
 }
+
 extension HeadlinesViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return newsArticleArray.count
-    }
+        let count = newsArticleArray.isEmpty ? 1 : newsArticleArray.count
+        return count
+     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        
         let cell = tableView.dequeueReusableCell(withIdentifier: "HeadlineCell", for: indexPath) as! HeadlineCell
-        let news = newsArticleArray[indexPath.row]
-        cell.headlineLabel.text = news.title
-        if news.imageUrl != nil {
-            if let url = URL(string: news.imageUrl!){
-                 cell.newsImageView.af_setImage(withURL: url)
-                
+        if newsArticleArray.isEmpty {
+            cell.headlineLabel.text = "Error loading news. Please check your internet connection and try again."
+            cell.newsSourceLabel.isHidden = true
+            cell.newsImageView.isHidden = true
+            
+        }
+        else {
+            let news = newsArticleArray[indexPath.row]
+            cell.headlineLabel.text = news.title
+            cell.newsSourceLabel.text = news.source
+            if news.imageUrl != nil {
+                if let url = URL(string: news.imageUrl!){
+                    cell.newsImageView.af_setImage(withURL: url)
+                    
+                }
             }
             
         }
@@ -86,27 +79,54 @@ extension HeadlinesViewController: UITableViewDataSource, UITableViewDelegate {
       self.navigationController?.pushViewController(webVC, animated: true)
         
     }
-    func checkParameters() {
-        if sourceId == "Skip" {
-            let params = ["apiKey" : "d7f0471d43f74327b096bc720d70689b", "sortBy" : "latest", "country" : "us"]
-            getData(url: webUrl, parameters: params)
+
+    func mapData() {
+//        if let jsonValue = getJson as? [String : Any] {
+//            if let articles = jsonValue ["articles"] as? Array<[String : Any]> {
+//                for article in articles{
+//                    guard let data = Mapper<DataModel>().map(JSON: article) else {continue}
+//                    self.newsArticleArray.append(data)
+//                }
+//            }
+         let jsonValue = JSON(getJson!)
+        if let jsonArray = jsonValue["articles"].arrayObject{
+            let articles = jsonArray as! [[String : AnyObject]]
+            for article in articles {
+                guard let data = Mapper<DataModel>().map(JSON: article) else {continue}
+                self.newsArticleArray.append(data)
+            }
             
+            tableView.reloadData()
         }
         else {
-            let params = ["apiKey" : "d7f0471d43f74327b096bc720d70689b", "sortBy" : "latest", "sources" : sourceId]
-            getData(url: webUrl, parameters: params)
-            
+            print ("Error")
         }
         
+        
     }
+
     @objc func refreshContent() {
         newsArticleArray = []
-        checkParameters()
+        callApi()
         let delay = DispatchTime.now() + .milliseconds(700)
         DispatchQueue.main.asyncAfter(deadline: delay) {
             self.tableView.reloadData()
             self.refresher.endRefreshing()
         }
+    }
+    
+    func callApi() {
+        self.callAPI = AlamofireAPI(sourceId: sourceId)
+        callAPI?.getData() { (response, error) in
+            if let data = response {
+                self.getJson = data
+                self.mapData()
+            }
+            else {
+                print("\(error!)")
+            }
+        }
+        
     }
     
 }
